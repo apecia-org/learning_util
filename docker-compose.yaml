@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  web:
+    build: .
+    # RUNNING ON PORT 8
+    ports:
+      - "8:8"
+    volumes:
+      - html-data:/usr/share/nginx/html
+    networks:
+      - webnet
+
+volumes:
+  html-data:
+
+networks:
+  webnet:
