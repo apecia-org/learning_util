@@ -1,56 +1,137 @@
-Task 1: Run & Restore the Web Service
-Goal: Starting from the provided (broken) files, get both
+# Web Service Restore Task
 
-“Hello from App 1!” at http://<host>:8080/app1/index.html
+## 🛠️ Task 1: Run & Restore the Web Service
 
-“Hello from App 2!” at http://<host>:9090/app2/index.html
+### 🌟 Goal
 
-1.1 Start the stack
+Restore a broken Docker-based web service so that the following URLs return correct responses:
 
+* `http://<host>:8080/app1/index.html` → **"Hello from App 1!"**
+* `http://<host>:9090/app2/index.html` → **"Hello from App 2!"**
+
+---
+
+## 📊 Instructions
+
+### 1.1 Start the Stack
+
+```bash
 docker-compose up --build
-1.2 Stop the stack
+```
 
+> Builds the Docker images and starts the containers.
+
+---
+
+### 1.2 Stop the Stack
+
+```bash
 docker-compose down
-(These commands build your images, launch the containers, and tear everything down.)
+```
 
-1.3 Observe the failure
-In your browser or via curl, hit:
+> Stops and removes containers, networks, and volumes.
 
-http://<host>:8080/app1/index.html
-http://<host>:9090/app2/index.html
-Note what goes wrong (e.g. connection refused, 404, blank page).
+---
 
-1.4 Identify all mis-configurations
-List every issue in the provided Dockerfile, docker-compose.yml, and nginx.conf that prevents the two pages from serving.
+### 1.3 Observe the Failure
 
-e.g. “Dockerfile never copies custom nginx.conf → Nginx falls back to default config”
+Try accessing the following URLs:
 
-1.5 Fix the Dockerfile
-Ensure your custom config/nginx.conf is actually baked into the image at /etc/nginx/nginx.conf.
+```bash
+curl http://localhost:8080/app1/index.html
+curl http://localhost:9090/app2/index.html
+```
 
-1.6 Fix the Compose file
-Update docker-compose.yml so that:
+Note the errors, such as:
 
-Host ports 8080 → container 80 and 9090 → container 80 are mapped
+* Connection refused
+* 404 Not Found
+* Blank page
 
-The local ./pages folder is bind-mounted at /usr/share/nginx/html
+---
 
-Service web attaches to overlay network webnet
+### 1.4 Identify Misconfigurations
 
-1.7 Fix the Nginx config
-Edit nginx.conf so that:
+Inspect the provided files and note issues:
 
-Nginx listens on both 80 and 9090
+* ❌ Dockerfile doesn't copy `nginx.conf` → Nginx uses default config.
+* ❌ `docker-compose.yml` missing port mappings for 8080 and 9090.
+* ❌ `./pages` not mounted into container at `/usr/share/nginx/html`.
+* ❌ `nginx.conf` lacks routes for `/app1` and `/app2`.
 
-/app1/ serves from /usr/share/nginx/html/app1
+---
 
-/app2/ serves from /usr/share/nginx/html/app2
+### 1.5 Fix the Dockerfile
 
-1.8 Redeploy & verify
+Ensure custom `nginx.conf` is copied into the image:
 
+```Dockerfile
+COPY config/nginx.conf /etc/nginx/nginx.conf
+```
+
+---
+
+### 1.6 Fix docker-compose.yml
+
+```yaml
+services:
+  web:
+    build: .
+    image: custom-nginx
+    ports:
+      - "8080:80"
+      - "9090:80"
+    volumes:
+      - ./pages:/usr/share/nginx/html
+      - ./config/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: overlay
+```
+
+---
+
+### 1.7 Fix nginx.conf
+
+```nginx
+events {}
+
+http {
+    server {
+        listen 80;
+
+        location /app1/ {
+            alias /usr/share/nginx/html/app1/;
+            index index.html;
+        }
+
+        location /app2/ {
+            alias /usr/share/nginx/html/app2/;
+            index index.html;
+        }
+    }
+}
+```
+
+---
+
+### 1.8 Redeploy and Verify
+
+```bash
 docker-compose down
 docker-compose up --build
-Then confirm:
+```
 
-curl http://<host>:8080/app1/index.html   # “Hello from App 1!”
-curl http://<host>:9090/app2/index.html   # “Hello from App 2!”
+Verify output:
+
+```bash
+curl http://localhost:8080/app1/index.html  # Should return "Hello from App 1!"
+curl http://localhost:9090/app2/index.html  # Should return "Hello from App 2!"
+```
+
+---
+
+🚀 **Done!** Your services should now be running correctly.
